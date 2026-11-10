@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f6f2">
+  <title>PeajeLab · Sincronización de procesos</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="PeajeLab, inicio"><span class="brand-icon">P<span>↗</span></span><span>Peaje<span class="brand-light">Lab</span></span></a>
+    <span class="header-divider"></span><h1 class="header-description">SINCRONIZACIÓN DE PROCESOS</h1>
+    <button id="connection" class="connection" type="button" title="Comprobar conexión"><i></i><span>Conectando…</span></button>
+  </header>
+  <main>
+    <div class="workspace">
+      <aside class="sidebar">
+        <form id="configuration" class="panel config-panel">
+          <div class="panel-heading"><span class="section-number">01</span><h2>Configura el peaje</h2></div>
+          <fieldset id="settings">
+            <label class="field-label" for="mode">Sincronización</label>
+            <select id="mode"><option value="seguro">Con semáforo · seguro</option><option value="colision">Colisión controlada</option><option value="libre">Sin protección · libre</option></select>
+            <p id="mode-description" class="field-hint">Los carriles comparten la caja por turnos. Cada cobro queda registrado.</p>
+            <div class="field-row"><label class="field-label" for="lane-count">Número de carriles</label><select id="lane-count" class="small-select" aria-label="Número de carriles"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div>
+            <div class="field-row quantity-heading"><span class="field-label">Vehículos por carril</span><button id="randomize" type="button" class="text-button">↻ Variar</button></div>
+            <div id="lane-inputs" class="lane-inputs"></div>
+            <p class="field-hint">Cada carril atiende su propia fila. Entre 1 y 100 vehículos por carril.</p>
+            <label class="field-label" for="speed">Velocidad de simulación</label>
+            <select id="speed"><option value="1200">0.25× · observar con calma</option><option value="600" selected>0.5× · normal</option><option value="250">1× · rápida</option><option value="100">2× · muy rápida</option></select>
+            <div class="estimate"><span>Vehículos previstos<strong id="expected-count">36</strong></span><span>Recaudación esperada<strong id="expected-money">S/ 180.00</strong></span></div>
+          </fieldset>
+          <button id="start" class="button primary" type="submit"><span>▶</span> Iniciar simulación</button>
+          <div class="secondary-actions"><button id="stop" class="button secondary" type="button" disabled>■ Detener</button><button id="reset" class="button secondary" type="button">↻ Reiniciar</button></div>
+          <p id="message" class="message" role="status">Todo listo. Configura los carriles y comienza.</p>
+        </form>
+      </aside>
+      <div class="dashboard">
+        <section class="metrics" aria-label="Estadísticas de la simulación">
+          <article class="metric"><div class="metric-label">RECAUDACIÓN GLOBAL <span class="metric-icon">S/</span></div><strong id="money">S/ 0.00</strong><span id="money-caption">de S/ 180.00 esperados</span></article>
+        </section>
+        <section class="panel simulation-panel" aria-labelledby="simulation-title">
+          <div class="simulation-heading"><div><p class="eyebrow">VISTA EN TIEMPO REAL</p><h2 id="simulation-title">Estación de peaje</h2></div><span id="run-state" class="state-pill"><i></i> En espera</span></div>
+          <div class="road-scroll"><canvas id="road" role="img" aria-label="Vista animada de vehículos avanzando por los carriles hacia las cabinas de peaje"></canvas></div>
+          <div class="road-legend"><span><i class="legend-dot green"></i> Atendiendo</span><span><i class="legend-dot amber"></i> Esperando acceso</span><span><i class="legend-dot blue"></i> Registrando cobro</span><span class="direction">Sentido del tránsito →</span></div>
+          <section class="lane-revenue" aria-labelledby="lane-revenue-title">
+            <h3 id="lane-revenue-title">Recaudación por carril</h3>
+            <div id="lane-revenue-cards" class="lane-revenue-cards"></div>
+          </section>
+          <div class="progress-area"><div><span>Avance de la atención <small id="progress-count">0 de 36 vehículos</small></span><strong id="progress-label">0 %</strong></div><div id="progress" class="progress-track" role="progressbar" aria-label="Vehículos atendidos" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div></div>
+        </section>
+          <section class="panel events-panel"><div class="detail-heading"><h2>Actividad de los procesos</h2><span id="event-count" class="subtle-badge">0 eventos</span></div><div class="log-head"><span>TIEMPO</span><span>EVENTO</span></div><ol id="event-log" class="event-log" aria-label="Eventos reales del simulador"><li class="log-empty">Los eventos de cada proceso aparecerán aquí.</li></ol></section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

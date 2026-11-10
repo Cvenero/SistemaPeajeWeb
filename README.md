@@ -4,6 +4,57 @@ Su objetivo central es demostrar la sincronización de procesos mediante semáfo
 
 El informe final incluye el PID, los vehículos y la recaudación de cada carril. Los registros individuales se contrastan con los valores esperados y, en el modo seguro, con los totales globales.
 
+## Visualización web local
+
+En Linux o WSL, con `g++`, `make` y Python 3 instalados, ejecuta:
+
+```bash
+make web
+```
+
+Deja esa terminal abierta y visita **http://127.0.0.1:8000** en tu navegador. En WSL también puedes abrir esa dirección desde el navegador de Windows. No abras `web/index.html` directamente: necesita comunicarse con el servidor local.
+
+La interfaz permite:
+
+- Configurar de 1 a 8 carriles, con cantidades distintas de 1 a 100 vehículos por carril.
+- Observar vehículos que avanzan hacia cada cabina y salen después del cobro.
+- Consultar la recaudación global, la recaudación de cada carril actualizada con cada cobro y el avance de atención, con el número de vehículos atendidos y el porcentaje completado.
+- Ver el estado de atención en los carriles e identificar sus PID en la actividad de procesos.
+- Elegir entre modo seguro, colisión controlada y ejecución libre sin protección.
+- Ajustar la velocidad antes de iniciar, variar cantidades, detener y reiniciar la simulación.
+- Consultar los eventos de los procesos y la verificación final de integridad.
+
+Para una primera demostración, deja cuatro carriles y el modo seguro, y pulsa **Iniciar simulación**. Después elige **Colisión controlada** y repite: la suma de los cobros individuales superará la recaudación global porque se pierden actualizaciones.
+
+Las velocidades disponibles son 0.25×, 0.5×, 1× y 2×: todas se redujeron un 50 % respecto de las originales. El servidor aplica `--escala-tiempo 2` para duplicar las pausas reales del simulador; la animación también duplica sus tiempos de desplazamiento. En modo seguro se añade una pausa breve dentro de la sección crítica para que el acceso exclusivo y las esperas sean visibles. Los procesos siguen atendiendo vehículos concurrentemente fuera de esa sección.
+
+El botón **Detener** cancela la ejecución: el padre recoge a sus hijos y libera la memoria y los semáforos. Los valores de una ejecución interrumpida representan los últimos eventos recibidos y no se presentan como un resultado final verificado. Cerrar la conexión también provoca la cancelación. Usa `Ctrl+C` en la terminal para cerrar el servidor.
+
+Si el puerto 8000 está ocupado:
+
+```bash
+make
+python3 web/server.py --puerto 8080
+```
+
+En ese caso abre http://127.0.0.1:8080. La interfaz funciona sin internet y sin instalar paquetes de Python, Node.js ni bibliotecas gráficas adicionales.
+
+### Cómo se conecta con C++
+
+`web/server.py` sirve la página y ejecuta `peaje` como subproceso. El ejecutable crea los carriles con `fork()`, comparte sus datos con `mmap()` y aplica los semáforos POSIX. Los hijos escriben eventos JSON en una tubería; el servidor los transmite al navegador, que interpola el movimiento de los vehículos entre esos eventos. La animación y los contadores se actualizan a partir de la ejecución real.
+
+El avance de atención refleja los vehículos **atendidos por los carriles**, mientras que la recaudación global refleja el importe registrado en memoria compartida. En los experimentos sin exclusión mutua, atender todos los vehículos puede dejar una recaudación inferior a la esperada; el mensaje final indica las actualizaciones perdidas. El evento final contiene los totales consolidados después de recoger a todos los hijos; en modo libre, los eventos intermedios son instantáneas que pueden llegar en distinto orden.
+
+Solo se admite una ejecución web a la vez. El límite visual de ocho carriles permite mantener legible la estación; la consola sigue admitiendo hasta 32. La vista muestra parte de cada cola y un indicador `+N` para los vehículos restantes.
+
+También puedes inspeccionar directamente el protocolo en la terminal:
+
+```bash
+./peaje --modo seguro --vehiculos 3,5,2 --json --demora-ms 600
+```
+
+`--json` produce un objeto por línea. `--demora-ms` acepta de 0 a 2000 milisegundos; su valor predeterminado es 0 para conservar las ejecuciones rápidas en consola. `--escala-tiempo` acepta factores de 1 a 4 (por defecto 1) y multiplica las pausas de atención, registro y carrera. Los eventos de cobro del modo seguro se publican dentro de la sección crítica para mantener el orden de las instantáneas.
+
 ## Componentes del sistema
 
 | Requisito | Implementación |
@@ -42,7 +93,7 @@ make
 ./peaje
 ```
 
-Si las herramientas no están instaladas, en Ubuntu se pueden instalar con `sudo apt install build-essential python3`. Python solo se necesita para las pruebas.
+Si las herramientas no están instaladas, en Ubuntu se pueden instalar con `sudo apt install build-essential python3`. Python se utiliza para la interfaz web y las pruebas; la consola se ejecuta directamente en C++.
 
 ## Cantidades de vehículos por carril
 
@@ -122,6 +173,8 @@ make test
 
 Las pruebas ejecutan procesos reales con un límite de tiempo. Verifican el modo seguro repetidamente con 1, 2 y 8 carriles, la pérdida exacta del experimento controlado, la comparación de ambos modos, cargas distintas por carril y el rechazo de argumentos inválidos. El modo libre no tiene una cantidad de pérdidas garantizada y por ello no se prueba exigiendo un total incorrecto.
 
+Las pruebas web comprueban el protocolo JSON, el orden exclusivo de acceso a la sección crítica, las peticiones HTTP, la cancelación y recogida de los hijos y la posibilidad de iniciar otra ejecución. Si el entorno impide abrir sockets, se omiten las pruebas de red y se ejecuta el manejador HTTP en memoria con procesos C++ reales. Las pruebas automáticas no sustituyen la revisión visual de las animaciones en un navegador.
+
 Código de salida: `0` ejecución válida (incluida una pérdida esperada en un experimento), `1` fallo de validación, `2` error de parámetros o de ejecución.
 
 ## Guion breve de exposición
@@ -134,8 +187,8 @@ Código de salida: `0` ejecución válida (incluida una pérdida esperada en un 
 
 ## Alcance y límites
 
-Se simulan cantidades fijas de vehículos y una tarifa única para aislar el fenómeno de sincronización. No se modelan colas de tráfico, pagos reales ni interfaz gráfica.
+Se simulan cantidades configurables de vehículos y una tarifa única para aislar el fenómeno de sincronización. La interfaz web representa visualmente las filas y la atención; no modela tráfico avanzado ni pagos reales.
 
-La limpieza cubre la finalización normal y los errores detectados de creación de procesos. No se implementa recuperación ante la muerte externa de un hijo mientras mantiene un semáforo o participa en la barrera: en tal caso la ejecución puede quedar esperando y debe detenerse. Los semáforos POSIX ordinarios no recuperan automáticamente un bloqueo cuyo propietario muere.
+La limpieza cubre la finalización normal, los errores detectados de creación o terminación de procesos y las solicitudes de cancelación mediante SIGINT o SIGTERM. Si un hijo falla, el padre cancela a los restantes, los recoge y libera los recursos. Los semáforos POSIX ordinarios no recuperan automáticamente un bloqueo cuyo propietario muere: se cancela la simulación completa. Una terminación forzada del padre con SIGKILL no permite ejecutar esa limpieza.
 
 La verificación automática tiene un tiempo máximo para detectar bloqueos. El código debe compilarse y probarse en Linux: las llamadas POSIX de este proyecto no están disponibles de forma nativa en Windows.
