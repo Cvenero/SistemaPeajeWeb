@@ -18,7 +18,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-// Todos estos objetos viven en un mmap MAP_SHARED, incluido el semáforo.
+// Todos estos objetos viven en un mmap MAP_SHARED, incluido el semaforo.
 struct Compartido {
     sem_t mutex;
     sem_t puerta1;
@@ -41,8 +41,6 @@ static void liberar(sem_t* s) {
     if (sem_post(s) == -1) { perror("sem_post"); _exit(2); }
 }
 
-// Barrera reutilizable de dos torniquetes. Solo coordina el experimento
-// de colisión: NO protege la lectura-modificación-escritura de los totales.
 static void barrera(Compartido* c, int n) {
     esperar(&c->barrera_mutex);
     if (++c->esperando == n) {
@@ -122,10 +120,10 @@ static Resultado simular(const std::string& modo, const std::vector<int>& cantid
             if (json) evento_json("carril_inicio", modo, carril + 1);
             for (int v = 0; v < cantidades[carril]; ++v) {
                 if (json) evento_json("atendiendo", modo, carril + 1, v + 1);
-                // Tiempo de atención fuera de la sección crítica: los carriles
+                // Tiempo de atención fuera de la sección critica: los carriles
                 // trabajan concurrentemente y llegan al cobro en momentos distintos.
                 if (demora_ms) usleep((demora_ms + (carril * 71 + v * 37) % 150) * 1000 * escala_tiempo);
-                // Solo participan en esta ronda los carriles que aún tienen vehículos.
+                // Solo participan en esta ronda los carriles que aún tienen vehiculos.
                 int participantes = modo == "colision"
                     ? static_cast<int>(std::count_if(cantidades.begin(), cantidades.end(),
                         [v](int cantidad) { return cantidad > v; })) : 0;
@@ -151,7 +149,7 @@ static Resultado simular(const std::string& modo, const std::vector<int>& cantid
                     auto leidos = *total;
                     auto dinero = *caja;
                     if (modo == "colision") barrera(c, participantes);
-                    else usleep(50 * escala_tiempo); // Amplía la ventana; el fallo sigue siendo variable.
+                    else usleep(50 * escala_tiempo); // Amplia la ventana; el fallo sigue siendo variable.
                     *total = leidos + 1;
                     *caja = dinero + tarifa;
                     if (modo == "colision") barrera(c, participantes);
@@ -163,7 +161,7 @@ static Resultado simular(const std::string& modo, const std::vector<int>& cantid
                 ++c->por_carril[carril];
                 c->centimos_por_carril[carril] += tarifa;
                 if (eventos && !json) {
-                    // Una línea por evento; la salida no forma parte de la prueba.
+                    // Una linea por evento; la salida no forma parte de la prueba.
                     dprintf(STDOUT_FILENO, "PID %ld | carril %d | vehiculo %d | cobro S/ 5.00\n",
                             static_cast<long>(getpid()), carril + 1, v + 1);
                 }
